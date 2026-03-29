@@ -1,3 +1,4 @@
+import pandas as pd
 import streamlit as st
 
 from app.auth.session import login, logout, register_user
@@ -232,6 +233,131 @@ def render_header(total_active: int) -> None:
 
     with right:
         st.toggle("Dark Mode", key="dark_mode", label_visibility="collapsed")
+
+
+def render_admin_records_section(df: pd.DataFrame) -> None:
+    st.markdown(
+        """
+        <div class='command-shell'>
+            <div class='command-kicker'>Admin Records</div>
+            <div class='command-sub'>View raw pothole records, search by any field, and export filtered data.</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    if df.empty:
+        st.info("No pothole records are available right now.")
+        return
+
+    display_df = df.copy()
+    lat_col = "latitude" if "latitude" in display_df.columns else ("lat" if "lat" in display_df.columns else None)
+    lng_col = "longitude" if "longitude" in display_df.columns else ("lng" if "lng" in display_df.columns else None)
+
+    if "time" in display_df.columns:
+        numeric_time = pd.to_numeric(display_df["time"], errors="coerce")
+        if numeric_time.notna().any():
+            time_unit = "ms" if float(numeric_time.dropna().median()) > 1e11 else "s"
+            display_df["reported_at"] = pd.to_datetime(numeric_time, unit=time_unit, errors="coerce")
+        else:
+            display_df["reported_at"] = pd.NaT
+    else:
+        display_df["reported_at"] = pd.NaT
+
+    selected = st.session_state.selected_pothole
+    if selected and lat_col and lng_col:
+        st.caption(
+            f"Selected cluster: ({selected['lat']:.4f}, {selected['lng']:.4f}) with {selected['count']} reports."
+        )
+
+    c1, c2, c3, c4 = st.columns([0.37, 0.25, 0.18, 0.20], gap="small")
+    with c1:
+        search_text = st.text_input(
+            "Search",
+            placeholder="Search status, id, cost, image path, etc.",
+            key="admin_records_search_text",
+        ).strip()
+    with c2:
+        status_values = []
+        if "status" in display_df.columns:
+            status_values = sorted([str(v) for v in display_df["status"].dropna().unique().tolist()])
+        selected_status = st.multiselect(
+            "Status",
+            options=status_values,
+            default=[],
+            key="admin_records_status_filter",
+        )
+    with c3:
+        duplicate_mode = st.selectbox(
+            "Duplicate",
+            options=["All", "Only duplicates", "Only non-duplicates"],
+            index=0,
+            key="admin_records_duplicate_mode",
+        )
+    with c4:
+        sort_mode = st.selectbox(
+            "Sort",
+            options=["Latest first", "Oldest first"],
+            index=0,
+            key="admin_records_sort_mode",
+        )
+
+    filtered_df = display_df.copy()
+
+    if search_text:
+        search_mask = filtered_df.astype(str).apply(
+            lambda col: col.str.contains(search_text, case=False, na=False)
+        ).any(axis=1)
+        filtered_df = filtered_df[search_mask]
+
+    if selected_status and "status" in filtered_df.columns:
+        filtered_df = filtered_df[filtered_df["status"].astype(str).isin(selected_status)]
+
+    if duplicate_mode != "All" and "duplicate" in filtered_df.columns:
+        duplicate_series = filtered_df["duplicate"].astype(str).str.strip().str.lower().isin(
+            ["true", "1", "yes"]
+        )
+        if duplicate_mode == "Only duplicates":
+            filtered_df = filtered_df[duplicate_series]
+        else:
+            filtered_df = filtered_df[~duplicate_series]
+
+    if selected and lat_col and lng_col:
+        only_selected = st.checkbox(
+            "Show only selected cluster records",
+            value=False,
+            key="admin_records_only_selected_cluster",
+        )
+        if only_selected:
+            selected_lat = float(selected["lat"])
+            selected_lng = float(selected["lng"])
+            lat_series = pd.to_numeric(filtered_df[lat_col], errors="coerce")
+            lng_series = pd.to_numeric(filtered_df[lng_col], errors="coerce")
+            filtered_df = filtered_df[
+                lat_series.round(4).eq(selected_lat)
+                & lng_series.round(4).eq(selected_lng)
+            ]
+
+    if "reported_at" in filtered_df.columns:
+        ascending = sort_mode == "Oldest first"
+        filtered_df = filtered_df.sort_values(by=["reported_at"], ascending=ascending, na_position="last")
+
+    st.caption(f"Showing {len(filtered_df)} of {len(display_df)} records")
+
+    download_df = filtered_df.copy()
+    if "reported_at" in download_df.columns:
+        download_df["reported_at"] = download_df["reported_at"].dt.strftime("%Y-%m-%d %H:%M:%S")
+
+    st.download_button(
+        "Download CSV",
+        data=download_df.to_csv(index=False).encode("utf-8"),
+        file_name="admin_pothole_records.csv",
+        mime="text/csv",
+        use_container_width=False,
+        key="admin_records_download_csv",
+    )
+
+    st.dataframe(download_df, use_container_width=True, hide_index=True)
 
 
 def _render_map_view_selector_inline() -> str:

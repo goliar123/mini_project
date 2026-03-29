@@ -94,7 +94,7 @@ def _build_tooltip(allow_selection: bool) -> dict:
 
 def render_map(df: pd.DataFrame, severity_filters: list[str], map_view_mode: str, map_height: int = 680) -> None:
     if df.empty:
-        st.info("Loading System...")
+        st.info("No pothole data found. Verify Firebase credentials, database URL, and /potholes records.")
         return
 
     current_selection = st.session_state.selected_pothole
@@ -112,11 +112,21 @@ def render_map(df: pd.DataFrame, severity_filters: list[str], map_view_mode: str
         st.warning("No potholes match the selected severity filters.")
         return
 
+    if (map_df["lat_round"] == 0).all() and (map_df["lon_round"] == 0).all():
+        st.warning("All pothole reports currently have invalid GPS coordinates (0,0). Update data source to send real latitude/longitude.")
+        return
+
     layers, allow_selection = _build_layers(map_df, map_view_mode, is_interactive)
 
+    center_lat = st.session_state.map_lat
+    center_lng = st.session_state.map_lng
+    if not st.session_state.location_locked:
+        center_lat = float(map_df["lat_round"].mean())
+        center_lng = float(map_df["lon_round"].mean())
+
     view_state = pdk.ViewState(
-        latitude=st.session_state.map_lat,
-        longitude=st.session_state.map_lng,
+        latitude=center_lat,
+        longitude=center_lng,
         zoom=15.5,
         pitch=35 if map_view_mode == "scatter" else 0,
     )

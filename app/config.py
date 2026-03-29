@@ -2,7 +2,7 @@ import os
 
 FIREBASE_CREDENTIALS_PATH = os.getenv("FIREBASE_CREDENTIALS_PATH", "serviceAccountKey.json")
 FIREBASE_DB_URL = os.getenv(
-    "FIREBASE_DB_URL", "https://pothole-detection-22105-default-rtdb.firebaseio.com/"
+    "FIREBASE_DB_URL", "https://pothhole-detect-default-rtdb.firebaseio.com/"
 )
 POTHOLES_PATH = "/potholes"
 USERS_PATH = "/users"

@@ -17,10 +17,21 @@ def get_data() -> pd.DataFrame:
 
         rows = []
         for key, value in data.items():
+            # Support both legacy (lat/lng) and normalized (latitude/longitude) schemas.
+            latitude = value.get("latitude", value.get("lat"))
+            longitude = value.get("longitude", value.get("lng"))
+            if latitude is None or longitude is None:
+                continue
+
             value["id"] = key
+            value["latitude"] = float(latitude)
+            value["longitude"] = float(longitude)
             if "confidence" not in value:
                 value["confidence"] = 0.0
             rows.append(value)
+
+        if not rows:
+            return pd.DataFrame()
 
         df = pd.DataFrame(rows)
         return df.sort_values(by=["latitude", "longitude"]).reset_index(drop=True)

@@ -8,6 +8,7 @@ from app.services.location import update_location_from_browser
 from app.services.potholes import delete_cluster, get_data
 from app.startup import configure_page, init_session_state
 from app.ui.layout import (
+    render_admin_records_section,
     render_auth_panel,
     render_contact_section,
     render_dashboard_command_bar,
@@ -67,6 +68,9 @@ def run() -> None:
     df = get_data()
     total_active = len(df)
     render_header(total_active)
+
+    if st.session_state.current_role == "admin":
+        render_admin_records_section(df)
 
     if not st.session_state.selected_pothole:
         st.session_state.show_resolve_panel = False
