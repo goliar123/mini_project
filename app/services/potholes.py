@@ -6,64 +6,172 @@ import streamlit as st
 from app.config import COORD_ROUNDING
 
 
+def _extract_coordinates(record: dict) -> Optional[tuple[float, float]]:
+    latitude = record.get("latitude", record.get("lat"))
+    longitude = record.get("longitude", record.get("lng"))
+    if latitude is None or longitude is None:
+        return None
+
+    try:
+        lat = float(latitude)
+        lng = float(longitude)
+    except (TypeError, ValueError):
+        return None
+
+    if not pd.notna(lat) or not pd.notna(lng):
+        return None
+
+    # Ignore placeholder coordinates where GPS lock did not happen.
+    if lat == 0.0 and lng == 0.0:
+        return None
+
+    return lat, lng
+
+
+def _normalize_record(
+    record_id: str,
+    record_value: dict,
+    reporter_uid: Optional[str],
+    source_path: str,
+) -> Optional[dict]:
+    coords = _extract_coordinates(record_value)
+    if not coords:
+        return None
+
+    latitude, longitude = coords
+    normalized = dict(record_value)
+    normalized["id"] = record_id
+    normalized["reporter_uid"] = reporter_uid
+    normalized["source_path"] = source_path
+    normalized["latitude"] = latitude
+    normalized["longitude"] = longitude
+    normalized["lat"] = latitude
+    normalized["lng"] = longitude
+    normalized["lon"] = longitude
+    if "confidence" not in normalized:
+        normalized["confidence"] = 0.0
+    return normalized
+
+
+def flatten_pothole_records(
+    flat_data: Optional[dict], users_data: Optional[dict]
+) -> pd.DataFrame:
+    rows: list[dict] = []
+
+    if isinstance(flat_data, dict):
+        for record_id, record_value in flat_data.items():
+            if not isinstance(record_value, dict):
+                continue
+            normalized = _normalize_record(
+                record_id=str(record_id),
+                record_value=record_value,
+                reporter_uid=None,
+                source_path=f"/potholes/{record_id}",
+            )
+            if normalized:
+                rows.append(normalized)
+
+    if isinstance(users_data, dict):
+        for uid, user_info in users_data.items():
+            if not isinstance(user_info, dict):
+                continue
+
+            potholes = user_info.get("potholes")
+            if not isinstance(potholes, dict):
+                continue
+
+            for record_id, record_value in potholes.items():
+                if not isinstance(record_value, dict):
+                    continue
+                normalized = _normalize_record(
+                    record_id=str(record_id),
+                    record_value=record_value,
+                    reporter_uid=str(uid),
+                    source_path=f"/users/{uid}/potholes/{record_id}",
+                )
+                if normalized:
+                    rows.append(normalized)
+
+    if not rows:
+        return pd.DataFrame()
+
+    df = pd.DataFrame(rows)
+    return df.sort_values(by=["latitude", "longitude"]).reset_index(drop=True)
+
+
 @st.cache_data(ttl=5, show_spinner=False)
 def get_data() -> pd.DataFrame:
     try:
-        from app.data.firebase_client import potholes_ref
+        from app.data.firebase_client import potholes_ref, users_ref
 
-        data = potholes_ref().get()
-        if not data:
-            return pd.DataFrame()
-
-        rows = []
-        for key, value in data.items():
-            # Support both legacy (lat/lng) and normalized (latitude/longitude) schemas.
-            latitude = value.get("latitude", value.get("lat"))
-            longitude = value.get("longitude", value.get("lng"))
-            if latitude is None or longitude is None:
-                continue
-
-            value["id"] = key
-            value["latitude"] = float(latitude)
-            value["longitude"] = float(longitude)
-            if "confidence" not in value:
-                value["confidence"] = 0.0
-            rows.append(value)
-
-        if not rows:
-            return pd.DataFrame()
-
-        df = pd.DataFrame(rows)
-        return df.sort_values(by=["latitude", "longitude"]).reset_index(drop=True)
+        flat_data = potholes_ref().get()
+        users_data = users_ref().get()
+        return flatten_pothole_records(flat_data=flat_data, users_data=users_data)
     except Exception:
         return pd.DataFrame()
 
 
 def delete_cluster(target_lat: float, target_lng: float) -> int:
     try:
-        from app.data.firebase_client import potholes_ref
+        from app.data.firebase_client import potholes_ref, users_ref
 
-        data = potholes_ref().get()
-        if not data:
-            return 0
+        deleted_count = 0
+        rounded_target_lat = round(target_lat, COORD_ROUNDING)
+        rounded_target_lng = round(target_lng, COORD_ROUNDING)
 
-        keys_to_delete = []
-        for key, value in data.items():
-            if (
-                round(value["latitude"], COORD_ROUNDING)
-                == round(target_lat, COORD_ROUNDING)
-                and round(value["longitude"], COORD_ROUNDING)
-                == round(target_lng, COORD_ROUNDING)
-            ):
-                keys_to_delete.append(key)
+        flat_data = potholes_ref().get()
+        if isinstance(flat_data, dict):
+            flat_updates = {}
+            for key, value in flat_data.items():
+                if not isinstance(value, dict):
+                    continue
 
-        if not keys_to_delete:
-            return 0
+                coords = _extract_coordinates(value)
+                if not coords:
+                    continue
 
-        updates = {key: None for key in keys_to_delete}
-        potholes_ref().update(updates)
-        get_data.clear()
-        return len(keys_to_delete)
+                lat, lng = coords
+                if round(lat, COORD_ROUNDING) == rounded_target_lat and round(
+                    lng, COORD_ROUNDING
+                ) == rounded_target_lng:
+                    flat_updates[key] = None
+
+            if flat_updates:
+                potholes_ref().update(flat_updates)
+                deleted_count += len(flat_updates)
+
+        users_data = users_ref().get()
+        if isinstance(users_data, dict):
+            user_updates = {}
+            for uid, user_info in users_data.items():
+                if not isinstance(user_info, dict):
+                    continue
+
+                potholes = user_info.get("potholes")
+                if not isinstance(potholes, dict):
+                    continue
+
+                for key, value in potholes.items():
+                    if not isinstance(value, dict):
+                        continue
+
+                    coords = _extract_coordinates(value)
+                    if not coords:
+                        continue
+
+                    lat, lng = coords
+                    if round(lat, COORD_ROUNDING) == rounded_target_lat and round(
+                        lng, COORD_ROUNDING
+                    ) == rounded_target_lng:
+                        user_updates[f"{uid}/potholes/{key}"] = None
+
+            if user_updates:
+                users_ref().update(user_updates)
+                deleted_count += len(user_updates)
+
+        if deleted_count > 0:
+            get_data.clear()
+        return deleted_count
     except Exception:
         return 0
 
