@@ -1,3 +1,6 @@
 serviceAccountKey.json
+.streamlit/secrets.toml
+.env
+.env.*
 
 

@@ -1,0 +1,5 @@
+streamlit>=1.37,<2.0
+pandas>=2.2,<3.0
+pydeck>=0.9,<1.0
+firebase-admin>=6.5,<7.0
+streamlit-js-eval>=0.1.7,<1.0
