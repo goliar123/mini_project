@@ -10,7 +10,7 @@ from app.startup import configure_page, init_session_state
 from app.ui.layout import (
     render_admin_records_section,
     render_auth_panel,
-    render_contact_section,
+    # render_contact_section,
     render_dashboard_command_bar,
     render_footer,
     render_header,
@@ -40,7 +40,7 @@ def run() -> None:
     if not st.session_state.logged_in:
         render_home_page()
         render_auth_panel()
-        render_contact_section()
+        # render_contact_section()
         render_footer()
         return
 
@@ -87,7 +87,7 @@ def run() -> None:
     else:
         render_map(df, severity_filters=severity_filters, map_view_mode=map_view_mode, map_height=700)
 
-    render_contact_section()
+    # render_contact_section()
     render_footer()
 
     if (

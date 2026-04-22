@@ -144,38 +144,38 @@ def render_auth_panel() -> None:
     pass
 
 
-def render_contact_section() -> None:
-    st.markdown(
-        """
-        <section class='contact-shell'>
-            <div class='contact-head'>
-                <div class='contact-kicker'>Contact Page</div>
-                <h2 class='contact-title'>Get Support And Escalate Field Incidents</h2>
-            </div>
-            <div class='contact-grid'>
-                <article class='contact-card'>
-                    <div class='contact-label'>Operations Desk</div>
-                    <div class='contact-value'>support@roadsafety-command.local</div>
-                    <div class='contact-value'>+91 40 1000 2200</div>
-                    <div class='contact-copy'>Mon-Sat, 08:00-20:00 IST</div>
-                </article>
-                <article class='contact-card'>
-                    <div class='contact-label'>Escalation</div>
-                    <div class='contact-value'>dispatch@roadsafety-command.local</div>
-                    <div class='contact-value'>+91 40 1000 2211</div>
-                    <div class='contact-copy'>Critical clusters are triaged in under 15 minutes.</div>
-                </article>
-                <article class='contact-card'>
-                    <div class='contact-label'>Support Channels</div>
-                    <div class='contact-value'>Ops Chat: #roadsafety-live</div>
-                    <div class='contact-value'>On-call: ward-response@roadsafety-command.local</div>
-                    <div class='contact-copy'>Share location, severity, and cluster count for faster support.</div>
-                </article>
-            </div>
-        </section>
-        """,
-        unsafe_allow_html=True,
-    )
+# def render_contact_section() -> None:
+#     st.markdown(
+#         """
+#         <section class='contact-shell'>
+#             <div class='contact-head'>
+#                 <div class='contact-kicker'>Contact Page</div>
+#                 <h2 class='contact-title'>Get Support And Escalate Field Incidents</h2>
+#             </div>
+#             <div class='contact-grid'>
+#                 <article class='contact-card'>
+#                     <div class='contact-label'>Operations Desk</div>
+#                     <div class='contact-value'>support@roadsafety-command.local</div>
+#                     <div class='contact-value'>+91 40 1000 2200</div>
+#                     <div class='contact-copy'>Mon-Sat, 08:00-20:00 IST</div>
+#                 </article>
+#                 <article class='contact-card'>
+#                     <div class='contact-label'>Escalation</div>
+#                     <div class='contact-value'>dispatch@roadsafety-command.local</div>
+#                     <div class='contact-value'>+91 40 1000 2211</div>
+#                     <div class='contact-copy'>Critical clusters are triaged in under 15 minutes.</div>
+#                 </article>
+#                 <article class='contact-card'>
+#                     <div class='contact-label'>Support Channels</div>
+#                     <div class='contact-value'>Ops Chat: #roadsafety-live</div>
+#                     <div class='contact-value'>On-call: ward-response@roadsafety-command.local</div>
+#                     <div class='contact-copy'>Share location, severity, and cluster count for faster support.</div>
+#                 </article>
+#             </div>
+#         </section>
+#         """,
+#         unsafe_allow_html=True,
+#     )
 
 
 def render_footer() -> None:
