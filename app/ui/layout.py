@@ -28,7 +28,7 @@ def render_home_page() -> None:
         <section class="claude-hero-container">
             <div class="claude-hero-topline">Road Safety Command</div>
             <div class="claude-hero-text">
-                <h1 class='headline-title claude-hero-title'>Good afternoon</h1>
+                <h1 class='headline-title claude-hero-title'>Good Morning</h1>
                 <p class="claude-hero-subtitle">
                     Welcome back to the Road Safety Command. Access your unified dashboard to resolve active clusters and view municipal metrics.
                 </p>
