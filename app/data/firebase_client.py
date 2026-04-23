@@ -1,5 +1,4 @@
-import json
-import os
+import logging
 
 import firebase_admin
 from firebase_admin import credentials, db
@@ -7,20 +6,10 @@ from firebase_admin import credentials, db
 from app.config import FIREBASE_CREDENTIALS_PATH, FIREBASE_DB_URL, POTHOLES_PATH, USERS_PATH
 
 
+logger = logging.getLogger(__name__)
+
+
 def _load_firebase_credential() -> credentials.Base:
-    raw_json = os.getenv("FIREBASE_CREDENTIALS_JSON")
-    if raw_json:
-        return credentials.Certificate(json.loads(raw_json))
-
-    try:
-        import streamlit as st
-
-        secret_block = st.secrets.get("firebase_service_account")
-        if secret_block:
-            return credentials.Certificate(dict(secret_block))
-    except Exception:
-        pass
-
     return credentials.Certificate(FIREBASE_CREDENTIALS_PATH)
 
 
@@ -36,9 +25,9 @@ def initialize_firebase() -> None:
                 "databaseURL": FIREBASE_DB_URL,
             },
         )
-    except Exception:
-        # Keep behavior aligned with existing app: fail silently during init.
-        pass
+    except Exception as exc:
+        # Surface startup issues in logs so Firebase connection problems are diagnosable.
+        logger.exception("Firebase initialization failed: %s", exc)
 
 
 def potholes_ref():
